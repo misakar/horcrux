@@ -1,0 +1,7 @@
+
+USAGE
+        nlinks
+
+DESCRIPTION
+        Gives a list of both active NET/ROM connections and NET/ROM
+        sockets in listening state.

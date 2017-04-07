@@ -1,0 +1,122 @@
+#!/usr/bin/perl
+# ------------------------------------------------------------------
+#
+#    Copyright (C) 2011-2013 Canonical Ltd.
+#
+#    This program is free software; you can redistribute it and/or
+#    modify it under the terms of version 2 of the GNU General Public
+#    License published by the Free Software Foundation.
+#
+# ------------------------------------------------------------------
+
+use strict;
+use warnings;
+use Errno;
+
+require LibAppArmor;
+require POSIX;
+
+my $opt_d = '';
+my $opt_h = '';
+my $opt_p = '';
+my $opt_n = '';
+my $opt_i = '';
+my $opt_v = '';
+my $opt_f = '';
+
+sub _warn {
+    my $msg = $_[0];
+    print STDERR "aa-exec: WARN: $msg\n";
+}
+sub _error {
+    my $msg = $_[0];
+    print STDERR "aa-exec: ERROR: $msg\n";
+    exit 1
+}
+
+sub _debug {
+    $opt_d or return;
+    my $msg = $_[0];
+    print STDERR "aa-exec: DEBUG: $msg\n";
+}
+
+sub _verbose {
+    $opt_v or return;
+    my $msg = $_[0];
+    print STDERR "$msg\n";
+}
+
+sub usage() {
+    my $s = <<'EOF';
+USAGE: aa-exec [OPTIONS] <prog> <args>
+
+Confine <prog> with the specified PROFILE.
+
+OPTIONS:
+  -p PROFILE, --profile=PROFILE		PROFILE to confine <prog> with
+  -n NAMESPACE, --namespace=NAMESPACE	NAMESPACE to confine <prog> in
+  -f FILE, --file FILE		profile file to load
+  -i, --immediate		change profile immediately instead of at exec
+  -v, --verbose			show messages with stats
+  -h, --help			display this help
+
+EOF
+    print $s;
+}
+
+use Getopt::Long;
+
+GetOptions(
+    'debug|d'        => \$opt_d,
+    'help|h'         => \$opt_h,
+    'profile|p=s'    => \$opt_p,
+    'namespace|n=s'  => \$opt_n,
+    'file|f=s'       => \$opt_f,
+    'immediate|i'    => \$opt_i,
+    'verbose|v'      => \$opt_v,
+);
+
+if ($opt_h) {
+    usage();
+    exit(0);
+}
+
+if ($opt_n || $opt_p) {
+   my $test;
+   my $prof;
+
+   if ($opt_n) {
+      $prof = ":$opt_n:";
+   }
+
+   $prof .= $opt_p;
+
+   if ($opt_f) {
+       system("apparmor_parser", "-r", "$opt_f") == 0
+	   or _error("\'aborting could not load $opt_f\'");
+   }
+
+   if ($opt_i) {
+       _verbose("aa_change_profile(\"$prof\")");
+       $test = LibAppArmor::aa_change_profile($prof);
+       _debug("$test = aa_change_profile(\"$prof\"); $!");
+   } else {
+       _verbose("aa_change_onexec(\"$prof\")");
+       $test = LibAppArmor::aa_change_onexec($prof);
+       _debug("$test = aa_change_onexec(\"$prof\"); $!");
+   }
+
+   if ($test != 0) {
+       if ($!{ENOENT} || $!{EACCESS}) {
+	   my $pre = ($opt_p) ? "profile" : "namespace";
+	   _error("$pre \'$prof\' does not exist\n");
+       } elsif ($!{EINVAL}) {
+	   _error("AppArmor interface not available\n");
+       } else {
+	   _error("$!\n");
+       }
+   }
+}
+
+_verbose("exec @ARGV");
+exec @ARGV;

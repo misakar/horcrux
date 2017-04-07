@@ -1,0 +1,7 @@
+ACTION!="add", GOTO="libgphoto2_rules_end"
+SUBSYSTEM!="usb", GOTO="libgphoto2_usb_end"
+ENV{ID_USB_INTERFACES}=="", IMPORT{builtin}="usb_id"
+ENV{ID_USB_INTERFACES}=="*:060101:*", ENV{ID_GPHOTO2}="1", ENV{GPHOTO2_DRIVER}="PTP", MODE="0664", GROUP="plugdev"
+
+LABEL="libgphoto2_rules_end"
+

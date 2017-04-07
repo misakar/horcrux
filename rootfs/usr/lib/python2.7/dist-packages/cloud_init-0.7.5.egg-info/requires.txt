@@ -1,0 +1,9 @@
+cheetah
+PrettyTable
+oauth
+pyserial
+configobj
+pyyaml
+argparse
+requests
+jsonpatch
